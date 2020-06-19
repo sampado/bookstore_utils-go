@@ -1,38 +1,73 @@
 package rest_errors
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
-type RestError struct {
-	Message string        `json:"message"`
-	Status  int           `json:"code"`
-	Error   string        `json:"error"`
-	Causes  []interface{} `json:"causes"`
+type RestError interface {
+	Message() string
+	Status() int
+	Error() string
+	Causes() []interface{}
 }
 
-func NewBadRequestError(message string) *RestError {
-	return &RestError{
-		Message: message,
-		Status:  http.StatusBadRequest,
-		Error:   http.StatusText(http.StatusBadRequest),
+type restError struct {
+	message string        `json:"message"`
+	status  int           `json:"code"`
+	error   string        `json:"error"`
+	causes  []interface{} `json:"causes"`
+}
+
+func (e restError) Error() string {
+	return fmt.Sprintf("message: %s - status: %d - error: %s - causes: [%v]",
+		e.message, e.status, e.error, e.causes)
+}
+
+func (e restError) Message() string {
+	return e.message
+}
+func (e restError) Status() int {
+	return e.status
+}
+
+func (e restError) Causes() []interface{} {
+	return e.causes
+}
+
+func NewRestError(msg string, status int, err string, causes []interface{}) RestError {
+	return restError{
+		message: msg,
+		status:  status,
+		error:   err,
+		causes:  causes,
 	}
 }
 
-func NewNotFoundError(message string) *RestError {
-	return &RestError{
-		Message: message,
-		Status:  http.StatusNotFound,
-		Error:   http.StatusText(http.StatusNotFound),
+func NewBadRequestError(message string) RestError {
+	return restError{
+		message: message,
+		status:  http.StatusBadRequest,
+		error:   http.StatusText(http.StatusBadRequest),
 	}
 }
 
-func NewInternalServerError(message string, err error) *RestError {
-	result := &RestError{
-		Message: message,
-		Status:  http.StatusInternalServerError,
-		Error:   http.StatusText(http.StatusInternalServerError),
+func NewNotFoundError(message string) RestError {
+	return restError{
+		message: message,
+		status:  http.StatusNotFound,
+		error:   http.StatusText(http.StatusNotFound),
+	}
+}
+
+func NewInternalServerError(message string, err error) RestError {
+	result := restError{
+		message: message,
+		status:  http.StatusInternalServerError,
+		error:   http.StatusText(http.StatusInternalServerError),
 	}
 	if err != nil {
-		result.Causes = append(result.Causes, err.Error())
+		result.causes = append(result.causes, err.Error())
 	}
 	return result
 }
